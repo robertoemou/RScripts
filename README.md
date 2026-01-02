@@ -1,1 +1,1 @@
-R scripts that make my life easier
+Some personal R scripts that make my life easier
