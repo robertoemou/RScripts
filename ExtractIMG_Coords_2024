@@ -1,0 +1,88 @@
+#Setted up to extract metadata from DJI drone or Timestamp app
+
+install.packages("exifr")
+install.packages("magick")
+
+# Load necessary library
+library(magick)
+library(exifr)
+
+#NOTE: YOU MUST INSTALL PEARL FOR exifr to work (https://strawberryperl.com/)
+configure_exiftool()
+
+# List image files 
+#image_files <- list.files(path = ""C:\Users\rescobar\Documents\CoordenadasFilterR"", 
+#                          pattern = "\\.(jpg|jpeg|png|tiff|bmp|JPG)$", 
+#                          full.names = TRUE)
+
+image_files <- list.files(
+  path = "C:\\Users\\rescobar\\OneDrive\\Inspeciones&Fotos\\Gira_X\\000fotos\\Fotos22-26sep2025",
+  pattern = "\\.(jpg|jpeg|png|tiff|bmp|JPG)$",
+  full.names = TRUE
+)
+
+# Function to extract metadata from each image
+extract_metadata <- function(file) {
+  metadata <- read_exif(file)  # Try to read EXIF metadata
+  if (is.null(metadata)) {
+    cat("No metadata for:", file, "\n")  # Debugging output
+  } else {
+    cat("Metadata found for:", file, "\n")
+  }
+  return(metadata)
+}
+
+# Apply the function to each image in the list
+metadata_list <- lapply(image_files, extract_metadata)
+
+# Filter out NULL values
+#metadata_list <- Filter(Negate(is.null), metadata_list)
+
+# If there is metadata, combine it into a single data frame
+if (length(metadata_list) > 0) {
+  
+  # Get the column names from the first metadata entry
+  column_names <- colnames(metadata_list[[1]])
+  
+  # Standardize the columns for all metadata entries
+  standardized_metadata <- lapply(metadata_list, function(metadata) {
+    missing_cols <- setdiff(column_names, colnames(metadata))
+    if (length(missing_cols) > 0) {
+      # Add missing columns with NA values
+      metadata[missing_cols] <- NA
+    }
+    # Reorder the columns to match the standard column order
+    return(metadata[, column_names, drop = FALSE])
+  })
+  
+  # Combine the metadata into a single data frame
+  metadata_df <- do.call(rbind, standardized_metadata)
+  
+} else {
+  metadata_df <- data.frame()  # If no metadata is found, return an empty data frame
+}
+
+
+# Select only the columns of interest
+#"Timestamp Camera Free" format
+#columns_to_keep <- c("FileName", "DateTimeOriginal",
+                     "GPSAltitude", "GPSLatitude", "GPSLongitude")
+#"DJI Mini 2" format
+columns_to_keep <- c("FileName", "CreateDate", "GPSPosition", 
+                     "GPSLongitude", "GPSLatitude", "GPSAltitude")
+
+
+# Check if all desired columns are available, then subset
+metadata_df <- metadata_df[, columns_to_keep, drop = FALSE]
+
+#colnames(metadata_df) <- c("Imagen", "Fecha y hora", "AltitudGPS", "Latitud", "Longitud")
+
+# View the result (optional)
+print(metadata_df)
+
+# Save the cleaned metadata to a CSV file
+write.csv(metadata_df, "C:\\Users\\rescobar\\OneDrive\\Inspeciones&Fotos\\Gira_X_20250917\\000fotos\\Fotos22-26sep2025\\metadata.csv", row.names = FALSE)
+
+
+cat("Filtered metadata saved as CSV to: E:/MyDrive_Gmail_GDriveSync/3MiAmbiente/3FotosGiras&Informes_20241106/Enero30_tina_oxidacion/PuntosGPSdeFotos.csv\n")
+
